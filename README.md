@@ -77,6 +77,53 @@ Update `appsettings.json` with your real values:
 }
 ```
 
+## Entity Framework
+
+### Install dependencies
+
+Install the EF Core design-time tools and the PostgreSQL provider (versions match .NET 9):
+
+```bash
+# From the aspnet project directory
+dotnet add package Microsoft.EntityFrameworkCore.Design --version 9.0.4
+dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL --version 9.0.4
+```
+
+Or add/restore via the project file and then run:
+
+```bash
+dotnet restore
+```
+
+### Create the first migration
+
+Ensure your `DbContext` is in the startup project (e.g. `Data/FinMateDbContext.cs`) and the connection string in `appsettings.json` is valid, then:
+
+```bash
+# Create a migration named InitialCreate (or any name you prefer)
+dotnet ef migrations add InitialCreate --project . --startup-project .
+```
+
+If the EF tools are not installed globally, install them once:
+
+```bash
+dotnet tool install --global dotnet-ef
+```
+
+### Update the database
+
+Apply pending migrations to the database:
+
+```bash
+dotnet ef database update --project . --startup-project .
+```
+
+To roll back to a specific migration (e.g. the previous one):
+
+```bash
+dotnet ef database update PreviousMigrationName --project . --startup-project .
+```
+
 ## Getting Started
 
 ```bash
