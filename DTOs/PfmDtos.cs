@@ -21,7 +21,7 @@ public record TransactionDto(
     DateTime Date
 );
 
-public record CreateTransactionDto(string Type, string Category, decimal Amount, string Description, DateTime? Date);
+public record CreateTransactionDto(string Type, string Category, decimal Amount, string? Description, DateTime? Date);
 
 public record GoalDto(
     Guid Id,
@@ -33,3 +33,5 @@ public record GoalDto(
 );
 
 public record CreateGoalDto(string Name, decimal TargetAmount, decimal CurrentAmount, DateTime? Deadline);
+
+public record ContributeGoalDto(decimal Amount);
