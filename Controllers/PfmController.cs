@@ -51,6 +51,15 @@ public class PfmController(PfmService pfmService) : ControllerBase
         return CreatedAtAction(nameof(GetGoals), result);
     }
 
+    [HttpPost("goals/{id}/contribute")]
+    public async Task<ActionResult<GoalDto>> ContributeToGoal(Guid id, [FromBody] ContributeGoalDto dto)
+    {
+        var userId = GetUserId();
+        var result = await pfmService.ContributeToGoalAsync(userId, id, dto.Amount);
+        if (result is null) return NotFound();
+        return Ok(result);
+    }
+
     private Guid GetUserId() =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 }

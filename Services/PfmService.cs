@@ -49,7 +49,7 @@ public class PfmService(ITransactionRepository transactionRepo, IFinancialGoalRe
             Type = Enum.Parse<TransactionType>(dto.Type),
             Category = dto.Category,
             Amount = dto.Amount,
-            Description = dto.Description,
+            Description = dto.Description ?? string.Empty,
             Date = dto.Date ?? DateTime.UtcNow
         };
 
@@ -64,6 +64,20 @@ public class PfmService(ITransactionRepository transactionRepo, IFinancialGoalRe
             g.Id, g.Name, g.TargetAmount, g.CurrentAmount, g.Deadline,
             g.TargetAmount > 0 ? Math.Round(g.CurrentAmount / g.TargetAmount * 100, 1) : 0
         )).ToList();
+    }
+
+    public async Task<GoalDto?> ContributeToGoalAsync(Guid userId, Guid goalId, decimal amount)
+    {
+        var goal = await goalRepo.GetByIdAsync(goalId);
+        if (goal is null || goal.UserId != userId) return null;
+
+        var newAmount = goal.CurrentAmount + amount;
+        if (newAmount < 0) newAmount = 0;
+        goal.CurrentAmount = newAmount;
+        await goalRepo.UpdateAsync(goal);
+
+        var progress = goal.TargetAmount > 0 ? Math.Round(goal.CurrentAmount / goal.TargetAmount * 100, 1) : 0;
+        return new GoalDto(goal.Id, goal.Name, goal.TargetAmount, goal.CurrentAmount, goal.Deadline, progress);
     }
 
     public async Task<GoalDto> CreateGoalAsync(Guid userId, CreateGoalDto dto)
