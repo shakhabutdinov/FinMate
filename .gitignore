@@ -44,4 +44,4 @@ artifacts/
 Thumbs.db
 
 ## Secrets — never commit real keys
-appsettings.Production.json
+appsettings.json
