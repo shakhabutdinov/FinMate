@@ -53,7 +53,7 @@ aspnet/
 
 ## Configuration
 
-Update `appsettings.json` with your real values:
+Update `appsettings.json` with real values:
 
 ```json
 {

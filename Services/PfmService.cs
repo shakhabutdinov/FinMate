@@ -8,26 +8,26 @@ public class PfmService(ITransactionRepository transactionRepo, IFinancialGoalRe
 {
     private static readonly Dictionary<string, string> CategoryColors = new()
     {
-        ["Housing"] = "#00FF88",
-        ["Food"] = "#00CC6A",
-        ["Transport"] = "#009950",
-        ["Utilities"] = "#006635",
+        ["Housing"]       = "#00FF88",
+        ["Food"]          = "#00CC6A",
+        ["Transport"]     = "#009950",
+        ["Utilities"]     = "#006635",
         ["Entertainment"] = "#004422"
     };
 
     public async Task<PfmOverviewDto> GetOverviewAsync(Guid userId)
     {
-        var now = DateTime.UtcNow;
+        var now          = DateTime.UtcNow;
         var startOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var transactions = await transactionRepo.GetByUserIdAsync(userId);
 
         var monthTransactions = transactions.Where(t => t.Date >= startOfMonth).ToList();
-        var incomeMtd = monthTransactions.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount);
-        var expensesMtd = monthTransactions.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount);
+        var incomeMtd         = monthTransactions.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount);
+        var expensesMtd       = monthTransactions.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount);
 
-        var cashflowData = GetCashflowData(transactions);
+        var cashflowData    = GetCashflowData(transactions);
         var expenseSegments = GetExpenseSegments(monthTransactions);
-        var totalExpenses = expenseSegments.Sum(e => e.Amount);
+        var totalExpenses   = expenseSegments.Sum(e => e.Amount);
 
         return new PfmOverviewDto(incomeMtd, expensesMtd, cashflowData, expenseSegments, totalExpenses);
     }
@@ -44,17 +44,21 @@ public class PfmService(ITransactionRepository transactionRepo, IFinancialGoalRe
     {
         var transaction = new Transaction
         {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            Type = Enum.Parse<TransactionType>(dto.Type),
-            Category = dto.Category,
-            Amount = dto.Amount,
+            Id          = Guid.NewGuid(),
+            UserId      = userId,
+            Type        = Enum.Parse<TransactionType>(dto.Type),
+            Category    = dto.Category,
+            Amount      = dto.Amount,
             Description = dto.Description ?? string.Empty,
-            Date = dto.Date ?? DateTime.UtcNow
+            // Ensure UTC — Npgsql rejects DateTimeKind.Unspecified
+            Date        = ToUtc(dto.Date ?? DateTime.UtcNow)
         };
 
         await transactionRepo.CreateAsync(transaction);
-        return new TransactionDto(transaction.Id, transaction.Type.ToString(), transaction.Category, transaction.Amount, transaction.Description, transaction.Date);
+        return new TransactionDto(
+            transaction.Id, transaction.Type.ToString(),
+            transaction.Category, transaction.Amount,
+            transaction.Description, transaction.Date);
     }
 
     public async Task<List<GoalDto>> GetGoalsAsync(Guid userId)
@@ -66,36 +70,48 @@ public class PfmService(ITransactionRepository transactionRepo, IFinancialGoalRe
         )).ToList();
     }
 
+    public async Task<GoalDto> CreateGoalAsync(Guid userId, CreateGoalDto dto)
+    {
+        var goal = new FinancialGoal
+        {
+            Id            = Guid.NewGuid(),
+            UserId        = userId,
+            Name          = dto.Name,
+            TargetAmount  = dto.TargetAmount,
+            CurrentAmount = dto.CurrentAmount,
+            // Convert to UTC — fixes Npgsql DateTimeKind.Unspecified error
+            Deadline      = dto.Deadline.HasValue ? ToUtc(dto.Deadline.Value) : null
+        };
+
+        await goalRepo.CreateAsync(goal);
+        var progress = goal.TargetAmount > 0
+            ? Math.Round(goal.CurrentAmount / goal.TargetAmount * 100, 1) : 0;
+        return new GoalDto(goal.Id, goal.Name, goal.TargetAmount, goal.CurrentAmount, goal.Deadline, progress);
+    }
+
     public async Task<GoalDto?> ContributeToGoalAsync(Guid userId, Guid goalId, decimal amount)
     {
         var goal = await goalRepo.GetByIdAsync(goalId);
         if (goal is null || goal.UserId != userId) return null;
 
-        var newAmount = goal.CurrentAmount + amount;
-        if (newAmount < 0) newAmount = 0;
-        goal.CurrentAmount = newAmount;
+        goal.CurrentAmount = Math.Max(0, goal.CurrentAmount + amount);
         await goalRepo.UpdateAsync(goal);
 
-        var progress = goal.TargetAmount > 0 ? Math.Round(goal.CurrentAmount / goal.TargetAmount * 100, 1) : 0;
+        var progress = goal.TargetAmount > 0
+            ? Math.Round(goal.CurrentAmount / goal.TargetAmount * 100, 1) : 0;
         return new GoalDto(goal.Id, goal.Name, goal.TargetAmount, goal.CurrentAmount, goal.Deadline, progress);
     }
 
-    public async Task<GoalDto> CreateGoalAsync(Guid userId, CreateGoalDto dto)
-    {
-        var goal = new FinancialGoal
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            Name = dto.Name,
-            TargetAmount = dto.TargetAmount,
-            CurrentAmount = dto.CurrentAmount,
-            Deadline = dto.Deadline
-        };
+    // Helpers 
 
-        await goalRepo.CreateAsync(goal);
-        var progress = goal.TargetAmount > 0 ? Math.Round(goal.CurrentAmount / goal.TargetAmount * 100, 1) : 0;
-        return new GoalDto(goal.Id, goal.Name, goal.TargetAmount, goal.CurrentAmount, goal.Deadline, progress);
-    }
+    /// <summary>
+    /// Ensures a DateTime has DateTimeKind.Utc.
+    /// Npgsql 6+ throws for DateTimeKind.Unspecified on timestamp columns.
+    /// </summary>
+    private static DateTime ToUtc(DateTime dt) =>
+        dt.Kind == DateTimeKind.Utc
+            ? dt
+            : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
 
     private static List<CashflowDataDto> GetCashflowData(List<Transaction> transactions)
     {
@@ -103,7 +119,7 @@ public class PfmService(ITransactionRepository transactionRepo, IFinancialGoalRe
         return months.Select((m, i) =>
         {
             var monthNum = i + 1;
-            var monthTx = transactions.Where(t => t.Date.Month == monthNum).ToList();
+            var monthTx  = transactions.Where(t => t.Date.Month == monthNum).ToList();
             return new CashflowDataDto(
                 m,
                 monthTx.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount),

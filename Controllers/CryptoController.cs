@@ -14,16 +14,30 @@ public class CryptoController(CryptoService cryptoService) : ControllerBase
     [HttpGet]
     public async Task<ActionResult<CryptoPortfolioDto>> GetPortfolio()
     {
-        var userId = GetUserId();
-        var result = await cryptoService.GetPortfolioAsync(userId);
+        var result = await cryptoService.GetPortfolioAsync(GetUserId());
         return Ok(result);
+    }
+
+    [HttpGet("price/{symbol}")]
+    public async Task<ActionResult> GetLivePrice(string symbol)
+    {
+        var price = await cryptoService.GetLivePriceAsync(symbol.ToUpper());
+
+        if (price <= 0)
+            return NotFound(new { error = $"Could not fetch live price for {symbol.ToUpper()}. Check the symbol and try again." });
+
+        return Ok(new
+        {
+            symbol   = symbol.ToUpper(),
+            price,
+            currency = "USDT"
+        });
     }
 
     [HttpPost]
     public async Task<ActionResult<CryptoHoldingDto>> CreateHolding([FromBody] CreateCryptoHoldingDto dto)
     {
-        var userId = GetUserId();
-        var result = await cryptoService.CreateHoldingAsync(userId, dto);
+        var result = await cryptoService.CreateHoldingAsync(GetUserId(), dto);
         return CreatedAtAction(nameof(GetPortfolio), result);
     }
 
