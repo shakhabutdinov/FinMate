@@ -13,7 +13,6 @@ public class DashboardService(
 {
     public async Task<DashboardDto> GetDashboardAsync(Guid userId)
     {
-        // 1. Manual assets (bank accounts, savings, etc.) 
         var assets    = await assetRepository.GetByUserIdAsync(userId);
         var assetDtos = new List<AssetDto>();
 

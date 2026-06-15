@@ -50,7 +50,6 @@ public class PfmService(ITransactionRepository transactionRepo, IFinancialGoalRe
             Category    = dto.Category,
             Amount      = dto.Amount,
             Description = dto.Description ?? string.Empty,
-            // Ensure UTC — Npgsql rejects DateTimeKind.Unspecified
             Date        = ToUtc(dto.Date ?? DateTime.UtcNow)
         };
 
@@ -79,7 +78,7 @@ public class PfmService(ITransactionRepository transactionRepo, IFinancialGoalRe
             Name          = dto.Name,
             TargetAmount  = dto.TargetAmount,
             CurrentAmount = dto.CurrentAmount,
-            // Convert to UTC — fixes Npgsql DateTimeKind.Unspecified error
+
             Deadline      = dto.Deadline.HasValue ? ToUtc(dto.Deadline.Value) : null
         };
 
@@ -102,12 +101,7 @@ public class PfmService(ITransactionRepository transactionRepo, IFinancialGoalRe
         return new GoalDto(goal.Id, goal.Name, goal.TargetAmount, goal.CurrentAmount, goal.Deadline, progress);
     }
 
-    // Helpers 
 
-    /// <summary>
-    /// Ensures a DateTime has DateTimeKind.Utc.
-    /// Npgsql 6+ throws for DateTimeKind.Unspecified on timestamp columns.
-    /// </summary>
     private static DateTime ToUtc(DateTime dt) =>
         dt.Kind == DateTimeKind.Utc
             ? dt

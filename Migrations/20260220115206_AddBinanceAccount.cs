@@ -5,10 +5,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace aspnet.Migrations
 {
-    /// <inheritdoc />
+
     public partial class AddBinanceAccount : Migration
     {
-        /// <inheritdoc />
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -40,7 +40,7 @@ namespace aspnet.Migrations
                 unique: true);
         }
 
-        /// <inheritdoc />
+
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

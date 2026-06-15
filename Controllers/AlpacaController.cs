@@ -11,7 +11,7 @@ namespace aspnet.Controllers;
 [Authorize]
 public class AlpacaController(AlpacaService alpacaService) : ControllerBase
 {
-    // Account 
+
 
     [HttpGet("status")]
     public async Task<ActionResult<AlpacaStatusDto>> GetStatus()
@@ -35,7 +35,7 @@ public class AlpacaController(AlpacaService alpacaService) : ControllerBase
         return NoContent();
     }
 
-    // Market data 
+
 
     [HttpGet("bars/{symbol}")]
     public async Task<ActionResult<List<AlpacaBarDto>>> GetBars(
@@ -69,7 +69,7 @@ public class AlpacaController(AlpacaService alpacaService) : ControllerBase
         }
     }
 
-    /// <summary>Get recent order history (last 20 by default).</summary>
+
     [HttpGet("orders")]
     public async Task<ActionResult<List<OrderSummaryDto>>> GetOrders(
         [FromQuery] int limit = 20)
@@ -78,7 +78,7 @@ public class AlpacaController(AlpacaService alpacaService) : ControllerBase
         catch (Exception ex) { return BadRequest(new { error = ex.Message }); }
     }
 
-    /// <summary>Cancel an open order by its order ID.</summary>
+
     [HttpDelete("orders/{orderId}")]
     public async Task<IActionResult> CancelOrder(string orderId)
     {

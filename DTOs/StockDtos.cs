@@ -13,10 +13,10 @@ public record StockHoldingDto(
     string Symbol,
     string CompanyName,
     decimal PricePerShare,
-    int Quantity,
+    decimal Quantity,
     decimal TotalValue,
-    string Color
-);
+    string Color,
+    decimal CostBasis = 0); 
 
 public record TrendingStockDto(
     string Symbol,

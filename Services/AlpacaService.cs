@@ -13,7 +13,7 @@ public class AlpacaService(IAlpacaAccountRepository alpacaRepo)
     private const string PaperBaseUrl = "https://paper-api.alpaca.markets";
     private const string DataBaseUrl  = "https://data.alpaca.markets";
 
-    // Status / Connect / Disconnect 
+
 
     public async Task<AlpacaStatusDto> GetStatusAsync(Guid userId)
     {
@@ -74,7 +74,7 @@ public class AlpacaService(IAlpacaAccountRepository alpacaRepo)
     public async Task DisconnectAsync(Guid userId) =>
         await alpacaRepo.DeleteAsync(userId);
 
-    // Market data 
+
 
     public async Task<List<AlpacaBarDto>> GetBarsAsync(
         string symbol, string apiKey, string secretKey,
@@ -123,9 +123,6 @@ public class AlpacaService(IAlpacaAccountRepository alpacaRepo)
         return await GetBarsAsync(symbol, account.ApiKey, account.SecretKey, timeframe, limit);
     }
 
-    // Order placement 
-
-    /// <summary>Place a market or limit order on behalf of the user.</summary>
     public async Task<OrderResultDto> PlaceOrderAsync(Guid userId, PlaceOrderDto dto)
     {
         var account = await alpacaRepo.GetByUserIdAsync(userId)
@@ -134,7 +131,6 @@ public class AlpacaService(IAlpacaAccountRepository alpacaRepo)
         if (!account.IsConnected)
             throw new InvalidOperationException("Alpaca account is not connected.");
 
-        // Validate side and type
         var side = dto.Side.ToLower();
         var type = dto.Type.ToLower();
 
@@ -147,7 +143,7 @@ public class AlpacaService(IAlpacaAccountRepository alpacaRepo)
         if (type == "limit" && dto.LimitPrice is null)
             throw new ArgumentException("A limit price is required for limit orders.");
 
-        // Build request body
+
         var orderBody = new Dictionary<string, object>
         {
             ["symbol"]        = dto.Symbol.ToUpper(),
@@ -195,7 +191,7 @@ public class AlpacaService(IAlpacaAccountRepository alpacaRepo)
         );
     }
 
-    /// <summary>Fetch recent orders (default last 20).</summary>
+
     public async Task<List<OrderSummaryDto>> GetOrdersAsync(Guid userId, int limit = 20)
     {
         var account = await alpacaRepo.GetByUserIdAsync(userId);
@@ -234,7 +230,7 @@ public class AlpacaService(IAlpacaAccountRepository alpacaRepo)
         return orders;
     }
 
-    /// <summary>Cancel an open order by its Alpaca order ID.</summary>
+
     public async Task CancelOrderAsync(Guid userId, string orderId)
     {
         var account = await alpacaRepo.GetByUserIdAsync(userId)
@@ -245,12 +241,12 @@ public class AlpacaService(IAlpacaAccountRepository alpacaRepo)
 
         var response = await client.DeleteAsync($"{baseUrl}/v2/orders/{orderId}");
 
-        // 204 = cancelled successfully; 422 = already filled (treat as non-fatal)
+
         if (!response.IsSuccessStatusCode && response.StatusCode != System.Net.HttpStatusCode.UnprocessableEntity)
             response.EnsureSuccessStatusCode();
     }
 
-    // Private helpers 
+ 
 
     private static async Task<AlpacaAccountDataDto> FetchAlpacaAccountData(
         string apiKey, string secretKey, bool isPaper)

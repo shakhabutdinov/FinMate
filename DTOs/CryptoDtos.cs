@@ -15,7 +15,8 @@ public record CryptoHoldingDto(
     decimal PricePerUnit,
     decimal Amount,
     decimal TotalValue,
-    string Color
+    string Color,
+    decimal CostBasis = 0
 );
 
 public record TrendingCryptoDto(

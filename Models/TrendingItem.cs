@@ -13,7 +13,7 @@ public class TrendingItem
     public decimal ChangePercent { get; set; }
 
     [MaxLength(20)]
-    public string Category { get; set; } = string.Empty; // "stock" or "crypto"
+    public string Category { get; set; } = string.Empty; 
 
     public List<decimal> ChartData { get; set; } = [];
 }

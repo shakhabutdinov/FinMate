@@ -5,10 +5,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace aspnet.Migrations
 {
-    /// <inheritdoc />
+
     public partial class AddSubscriptionFields : Migration
     {
-        /// <inheritdoc />
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<DateTime>(
@@ -25,7 +25,7 @@ namespace aspnet.Migrations
                 defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
         }
 
-        /// <inheritdoc />
+
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(

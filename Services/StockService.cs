@@ -12,54 +12,54 @@ public class StockService(
     IAlpacaAccountRepository alpacaRepo,
     HttpClient httpClient)
 {
-    // Alpaca free IEX data feed — no API key needed for latest quotes
+
     private const string AlpacaDataUrl = "https://data.alpaca.markets/v2/stocks/quotes/latest";
 
     public async Task<StockPortfolioDto> GetPortfolioAsync(Guid userId)
     {
         var holdings = await stockRepo.GetByUserIdAsync(userId);
-        var trending  = await trendingRepo.GetByCategoryAsync("stock");
+        var trending = await trendingRepo.GetByCategoryAsync("stock");
 
-        // Try to get user's Alpaca credentials for authenticated price fetch
+
         var alpacaAccount = await alpacaRepo.GetByUserIdAsync(userId);
-        string? apiKey    = alpacaAccount?.IsConnected == true ? alpacaAccount.ApiKey    : null;
+        string? apiKey = alpacaAccount?.IsConnected == true ? alpacaAccount.ApiKey : null;
         string? secretKey = alpacaAccount?.IsConnected == true ? alpacaAccount.SecretKey : null;
 
-        var symbols   = holdings.Select(h => h.Symbol).Distinct().ToList();
+        var symbols = holdings.Select(h => h.Symbol).Distinct().ToList();
         var livePrices = await FetchLivePricesAsync(symbols, apiKey, secretKey);
 
-        decimal totalBalance   = 0;
+        decimal totalBalance = 0;
         decimal totalDayChange = 0;
         var holdingDtos = new List<StockHoldingDto>();
 
         foreach (var h in holdings)
         {
-            if (livePrices.TryGetValue(h.Symbol, out var livePrice))
-            {
-                h.PricePerShare = livePrice;
-            }
+            var costBasis = h.PricePerShare; 
 
-            var value     = h.Quantity * h.PricePerShare;
+            if (livePrices.TryGetValue(h.Symbol, out var livePrice))
+                h.PricePerShare = livePrice;
+
+            var value = h.Quantity * h.PricePerShare;
             totalBalance += value;
 
             holdingDtos.Add(new StockHoldingDto(
                 h.Id, h.Symbol, h.CompanyName,
-                h.PricePerShare, h.Quantity, value, h.Color));
+                h.PricePerShare, h.Quantity, value, h.Color,
+                costBasis)); 
         }
 
-        // Compute a rough daily change from trending data or live fetch
+
         var trendingDtos = trending.Select(t => new TrendingStockDto(
             t.Symbol, t.Price, t.ChangePercent, t.ChartData
         )).ToList();
 
-        // Overall day change: sum of (quantity * change per share)
-        // Using trending changePercent as a proxy for held stocks
+
         foreach (var h in holdings)
         {
             var trend = trendingDtos.FirstOrDefault(t => t.Symbol == h.Symbol);
             if (trend is not null)
             {
-                var prev  = h.PricePerShare / (1 + trend.ChangePercent / 100m);
+                var prev = h.PricePerShare / (1 + trend.ChangePercent / 100m);
                 totalDayChange += (h.PricePerShare - prev) * h.Quantity;
             }
         }
@@ -80,13 +80,13 @@ public class StockService(
     {
         var holding = new StockHolding
         {
-            Id            = Guid.NewGuid(),
-            UserId        = userId,
-            Symbol        = dto.Symbol,
-            CompanyName   = dto.CompanyName,
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Symbol = dto.Symbol,
+            CompanyName = dto.CompanyName,
             PricePerShare = dto.PricePerShare,
-            Quantity      = dto.Quantity,
-            Color         = dto.Color
+            Quantity = dto.Quantity,
+            Color = dto.Color
         };
 
         await stockRepo.CreateAsync(holding);
@@ -98,8 +98,7 @@ public class StockService(
     public async Task DeleteHoldingAsync(Guid id) =>
         await stockRepo.DeleteAsync(id);
 
-    // Fetch latest quotes from Alpaca market data API
-    // Works with or without API keys 
+
     private async Task<Dictionary<string, decimal>> FetchLivePricesAsync(
         List<string> symbols,
         string? apiKey,
@@ -111,7 +110,7 @@ public class StockService(
         try
         {
             var symbolsParam = string.Join(",", symbols);
-            var url          = $"{AlpacaDataUrl}?symbols={symbolsParam}&feed=iex";
+            var url = $"{AlpacaDataUrl}?symbols={symbolsParam}&feed=iex";
 
             if (apiKey is not null && secretKey is not null)
             {
@@ -121,7 +120,7 @@ public class StockService(
                 httpClient.DefaultRequestHeaders.Add("APCA-API-SECRET-KEY", secretKey);
             }
 
-            var json      = await httpClient.GetStringAsync(url);
+            var json = await httpClient.GetStringAsync(url);
             using var doc = JsonDocument.Parse(json);
 
             if (!doc.RootElement.TryGetProperty("quotes", out var quotes))
@@ -131,7 +130,7 @@ public class StockService(
             {
                 if (!quotes.TryGetProperty(sym, out var quote)) continue;
 
-                // "ap" = ask price (best available real-time proxy for last price)
+
                 if (quote.TryGetProperty("ap", out var ap) &&
                     decimal.TryParse(ap.GetRawText(), CultureInfo.InvariantCulture, out var price)
                     && price > 0)
@@ -142,7 +141,7 @@ public class StockService(
         }
         catch
         {
-            // Fall back to stored prices if Alpaca data is unreachable
+
         }
 
         return result;

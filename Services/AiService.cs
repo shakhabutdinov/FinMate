@@ -290,7 +290,7 @@ This month — Income: ${income:N2} | Expenses: ${expenses:N2} | Surplus: ${inco
             var finishReason = choice.GetProperty("finish_reason").GetString();
             var assistantMsg = choice.GetProperty("message");
 
-            // No tool calls → final response
+            // No tool calls - final response
             if (finishReason == "stop")
             {
                 return assistantMsg.TryGetProperty("content", out var textEl)

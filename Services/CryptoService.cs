@@ -16,38 +16,37 @@ public class CryptoService(
     public async Task<CryptoPortfolioDto> GetPortfolioAsync(Guid userId)
     {
         var holdings = await cryptoRepo.GetByUserIdAsync(userId);
-        var trending  = await trendingRepo.GetByCategoryAsync("crypto");
+        var trending = await trendingRepo.GetByCategoryAsync("crypto");
 
-        // Fetch live prices from Binance public API (no auth required)
+
         var livePrices = await FetchLivePricesAsync(
             holdings.Select(h => h.Symbol).Distinct().ToList());
 
-        decimal totalBalance    = 0;
-        decimal totalDayChange  = 0;
+        decimal totalBalance = 0;
+        decimal totalDayChange = 0;
         var holdingDtos = new List<CryptoHoldingDto>();
 
         foreach (var h in holdings)
         {
-            // Use live price if available, fall back to stored price
-            if (livePrices.TryGetValue(h.Symbol, out var live))
-            {
-                h.PricePerUnit = live.Price;
-            }
+            var costBasis = h.PricePerUnit; 
 
-            var value      = h.Amount * h.PricePerUnit;
-            var dayChange  = livePrices.TryGetValue(h.Symbol, out var liveData)
+            if (livePrices.TryGetValue(h.Symbol, out var live))
+                h.PricePerUnit = live.Price;
+
+            var value = h.Amount * h.PricePerUnit;
+            var dayChange = livePrices.TryGetValue(h.Symbol, out var liveData)
                 ? value * liveData.ChangePercent / 100m
                 : 0;
 
-            totalBalance   += value;
+            totalBalance += value;
             totalDayChange += dayChange;
 
             holdingDtos.Add(new CryptoHoldingDto(
                 h.Id, h.Symbol, h.Name, h.PricePerUnit,
-                h.Amount, value, h.Color));
+                h.Amount, value, h.Color, costBasis)); 
         }
 
-        // Enrich trending items with live price data
+
         var trendingDtos = trending.Select(t =>
         {
             var changePercent = livePrices.TryGetValue(t.Symbol, out var lp)
@@ -75,19 +74,19 @@ public class CryptoService(
 
     public async Task<CryptoHoldingDto> CreateHoldingAsync(Guid userId, CreateCryptoHoldingDto dto)
     {
-        // Always fetch live price from Binance — user should not have to enter it manually
+
         var livePrice = await GetLivePriceAsync(dto.Symbol);
         var priceToUse = livePrice > 0 ? livePrice : dto.PricePerUnit;
 
         var holding = new CryptoHolding
         {
-            Id           = Guid.NewGuid(),
-            UserId       = userId,
-            Symbol       = dto.Symbol.ToUpper(),
-            Name         = dto.Name,
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Symbol = dto.Symbol.ToUpper(),
+            Name = dto.Name,
             PricePerUnit = priceToUse,
-            Amount       = dto.Amount,
-            Color        = dto.Color
+            Amount = dto.Amount,
+            Color = dto.Color
         };
 
         await cryptoRepo.CreateAsync(holding);
@@ -99,27 +98,24 @@ public class CryptoService(
     public async Task DeleteHoldingAsync(Guid id) =>
         await cryptoRepo.DeleteAsync(id);
 
-    /// <summary>
-    /// Fetch the current live USDT price for a single symbol from Binance public API.
-    /// No API key required.
-    /// </summary>
+
     public async Task<decimal> GetLivePriceAsync(string symbol)
     {
         try
         {
-            var url      = $"https://api.binance.com/api/v3/ticker/price?symbol={symbol.ToUpper()}USDT";
-            var json     = await httpClient.GetStringAsync(url);
+            var url = $"https://api.binance.com/api/v3/ticker/price?symbol={symbol.ToUpper()}USDT";
+            var json = await httpClient.GetStringAsync(url);
             using var doc = JsonDocument.Parse(json);
             var priceStr = doc.RootElement.GetProperty("price").GetString()!;
             return decimal.Parse(priceStr, CultureInfo.InvariantCulture);
         }
         catch
         {
-            return 0; // symbol not found or network issue
+            return 0;
         }
     }
 
-    // Fetch 24-hr ticker data from Binance public API — no API key required
+
 
     private async Task<Dictionary<string, (decimal Price, decimal ChangePercent)>> FetchLivePricesAsync(
         List<string> symbols)
@@ -128,7 +124,7 @@ public class CryptoService(
 
         try
         {
-            var json     = await httpClient.GetStringAsync(BinanceTickerUrl);
+            var json = await httpClient.GetStringAsync(BinanceTickerUrl);
             using var doc = JsonDocument.Parse(json);
 
             foreach (var item in doc.RootElement.EnumerateArray())
@@ -137,7 +133,7 @@ public class CryptoService(
 
                 foreach (var sym in symbols)
                 {
-                    // Match "BTC" → "BTCUSDT"
+
                     if (!tickerSymbol.Equals($"{sym}USDT", StringComparison.OrdinalIgnoreCase))
                         continue;
 
@@ -155,7 +151,7 @@ public class CryptoService(
         }
         catch
         {
-            // Silently fall back to stored prices if Binance is unreachable
+
         }
 
         return result;
